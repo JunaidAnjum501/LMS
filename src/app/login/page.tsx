@@ -108,7 +108,7 @@ export default function LoginPage() {
     // Redirect to dashboard after successful login
     if (isLogin) {
       setTimeout(() => {
-        router.push('/dashboard');
+        router.push('/dashboard/student/');
       }, 1500);
     }
   };

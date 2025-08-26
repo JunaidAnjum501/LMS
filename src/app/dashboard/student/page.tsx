@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { BookOpen, Clock, Award, Calendar, BarChart2, CheckCircle, FileText, Settings, User, LogOut, Search, Filter, Star, Users, Clock3, BookOpenCheck, Video, Bell, ExternalLink, MessageSquare, CheckSquare, FileCheck, FileQuestion, ThumbsUp, Loader, PenTool, Upload, Download, X, Plus, ChevronDown, ChevronRight, Edit, Trash, AlertCircle, Target, TrendingUp, FilePlus, Info } from 'lucide-react';
@@ -419,6 +420,28 @@ const getDaysRemaining = (dateString: string) => {
 };
 
 export default function StudentDashboard() {
+  const router = useRouter();
+  
+  // Mock user role - in real app, this would come from auth context
+  const [userRole, setUserRole] = useState('student');
+
+  useEffect(() => {
+    // In a real app, this would check the actual user role from auth context
+    // For now, we'll use the mock role to demonstrate routing
+    switch (userRole) {
+      case 'instructor':
+        router.push('/dashboard/instructor');
+        break;
+      case 'parent':
+        router.push('/dashboard/parent');
+        break;
+      case 'admin':
+        router.push('/dashboard/admin');
+        break;
+      // student stays on this page
+    }
+  }, [userRole, router]);
+
   // State for active tab
   const [activeTab, setActiveTab] = useState('overview');
   
@@ -477,8 +500,22 @@ export default function StudentDashboard() {
       {/* Dashboard Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          {/* Role Switcher for Demo */}
+          <div className="mb-4 flex items-center space-x-4">
+            <span className="text-sm font-medium text-gray-700">Current Role:</span>
+            <select
+              value={userRole}
+              onChange={(e) => setUserRole(e.target.value)}
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="student">Student</option>
+              <option value="instructor">Instructor</option>
+              <option value="parent">Parent</option>
+              <option value="admin">Administrator</option>
+            </select>
+          </div>
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-heading font-bold text-primary">Student Dashboard</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Student Dashboard</h1>
             <div className="flex items-center space-x-4">
               <div className="relative">
                 <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
