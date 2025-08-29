@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Users, BookOpen, TrendingUp, DollarSign, Settings, Shield, BarChart3, Eye, Edit, Trash, Plus, Search, Filter, Download, Calendar, Clock, Award, UserPlus, BookPlus, Activity, AlertTriangle, CheckCircle, XCircle, Mail, Phone, FileText, CreditCard, PieChart, LineChart, BarChart, MapPin, Bell, UserCheck, UserX, Star, ExternalLink, ChevronDown, ChevronRight, MoreVertical } from 'lucide-react';
 
 // Mock data for system overview
-const systemStats = {
+const initialSystemStats = {
   totalUsers: 15420,
   totalStudents: 12450,
   totalInstructors: 1850,
@@ -26,7 +26,7 @@ const systemStats = {
 };
 
 // Mock data for users
-const users = [
+const initialUsers = [
   {
     id: 1,
     name: 'Alice Johnson',
@@ -90,7 +90,7 @@ const users = [
 ];
 
 // Mock data for courses
-const courses = [
+const initialCourses = [
   {
     id: 1,
     title: 'Introduction to Web Development',
@@ -214,7 +214,7 @@ const systemActivities = [
 ];
 
 // Mock data for support tickets
-const supportTickets = [
+const initialSupportTickets = [
   {
     id: 1,
     user: 'Alice Johnson',
@@ -254,7 +254,7 @@ const supportTickets = [
 ];
 
 // Mock data for platform settings
-const platformSettings = {
+const initialPlatformSettings = {
   general: {
     siteName: 'LearnHub Academy',
     siteDescription: 'Your gateway to professional learning',
@@ -289,13 +289,70 @@ const platformSettings = {
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
-  const [selectedUser, setSelectedUser] = useState<number | null>(null);
-  const [selectedCourse, setSelectedCourse] = useState<number | null>(null);
+  const [users, setUsers] = useState(initialUsers);
+  const [courses, setCourses] = useState(initialCourses);
+  const [supportTickets, setSupportTickets] = useState(initialSupportTickets);
+  const [platformSettings, setPlatformSettings] = useState(initialPlatformSettings);
+  const [systemStats, setSystemStats] = useState(initialSystemStats);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedCourse, setSelectedCourse] = useState<any>(null);
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showCourseModal, setShowCourseModal] = useState(false);
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [newUser, setNewUser] = useState({
+    name: '',
+    email: '',
+    role: 'student',
+    status: 'active'
+  });
+  const [newCourse, setNewCourse] = useState({
+    title: '',
+    instructor: '',
+    category: 'Web Development',
+    status: 'draft',
+    price: 0,
+    studentsEnrolled: 0,
+    description: ''
+  });
+  const [newTicket, setNewTicket] = useState({
+    subject: '',
+    user: '',
+    email: '',
+    category: 'Technical',
+    priority: 'medium',
+    status: 'open',
+    description: ''
+  });
+  const [editMode, setEditMode] = useState(false);
+  const [editCourseMode, setEditCourseMode] = useState(false); 
+  const [editTicketMode, setEditTicketMode] = useState(false); 
+
+  // Update system stats when users or courses change
+  useEffect(() => {
+    const totalUsers = users.length;
+    const totalStudents = users.filter(u => u.role === 'student').length;
+    const totalInstructors = users.filter(u => u.role === 'instructor').length;
+    const totalParents = users.filter(u => u.role === 'parent').length;
+    const totalCourses = courses.length;
+    const activeCourses = courses.filter(c => c.status === 'active').length;
+    const totalRevenue = courses.reduce((sum, c) => sum + c.revenue, 0);
+    
+    setSystemStats(prev => ({
+      ...prev,
+      totalUsers,
+      totalStudents,
+      totalInstructors,
+      totalParents,
+      totalCourses,
+      activeCourses,
+      totalRevenue
+    }));
+  }, [users, courses]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -307,14 +364,6 @@ export default function AdminDashboard() {
   const formatDate = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' };
     return new Date(dateString).toLocaleDateString('en-US', options);
-  };
-
-  const getDaysAgo = (dateString: string) => {
-    const today = new Date();
-    const date = new Date(dateString);
-    const diffTime = today.getTime() - date.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
   };
 
   const getStatusColor = (status: string) => {
@@ -335,9 +384,200 @@ export default function AdminDashboard() {
         return 'text-yellow-600 bg-yellow-100';
       case 'resolved':
         return 'text-green-600 bg-green-100';
+      case 'high':
+        return 'text-red-600 bg-red-100';
+      case 'medium':
+        return 'text-yellow-600 bg-yellow-100';
+      case 'low':
+        return 'text-green-600 bg-green-100';
       default:
         return 'text-gray-600 bg-gray-100';
     }
+  };
+
+  const handleAddUser = () => {
+    const newUserObj = {
+      id: users.length + 1,
+      ...newUser,
+      joinDate: new Date().toISOString().split('T')[0],
+      lastLogin: new Date().toISOString().split('T')[0],
+      lastActivity: 'Just now',
+      coursesEnrolled: 0,
+      coursesCompleted: 0,
+      totalSpent: 0,
+      avatar: '/images/default-avatar.jpg',
+      country: 'United States'
+    };
+    
+    setUsers([...users, newUserObj]);
+    setShowUserModal(false);
+    setNewUser({ name: '', email: '', role: 'student', status: 'active' });
+  };
+
+  const handleEditUser = () => {
+    if (!selectedUser) return;
+    
+    const updatedUsers = users.map(user => 
+      user.id === selectedUser.id ? { ...selectedUser } : user
+    );
+    
+    setUsers(updatedUsers);
+    setShowUserModal(false);
+    setSelectedUser(null);
+  };
+
+  const handleDeleteUser = (id: number) => {
+    if (confirm('Are you sure you want to delete this user?')) {
+      setUsers(users.filter(user => user.id !== id));
+    }
+  };
+
+  const handleAddCourse = () => {
+    const newCourseObj = {
+      id: courses.length + 1,
+      ...newCourse,
+      createdDate: new Date().toISOString().split('T')[0],
+      lastUpdated: new Date().toISOString().split('T')[0],
+      completionRate: 0,
+      averageRating: 0,
+      revenue: 0,
+      duration: '6 weeks',
+      level: 'Beginner',
+      lessons: 0,
+      quizzes: 0,
+      assignments: 0,
+      image: '/images/default-course.jpg'
+    };
+    
+    setCourses([...courses, newCourseObj]);
+    setShowCourseModal(false);
+    setNewCourse({ 
+      title: '', 
+      instructor: '', 
+      category: 'Web Development', 
+      status: 'draft', 
+      price: 0,
+      studentsEnrolled: 0,
+      description: ''
+    });
+  };
+
+  const handleEditCourse = () => {
+    if (!selectedCourse) return;
+    
+    const updatedCourses = courses.map(course => 
+      course.id === selectedCourse.id ? { ...selectedCourse, lastUpdated: new Date().toISOString().split('T')[0] } : course
+    );
+    
+    setCourses(updatedCourses);
+    setShowCourseModal(false);
+    setSelectedCourse(null);
+  };
+
+  const handleAddTicket = () => {
+    const newTicketObj = {
+      id: supportTickets.length + 1,
+      ...newTicket,
+      createdDate: new Date().toISOString().split('T')[0],
+      lastUpdate: new Date().toISOString().split('T')[0],
+      assignedTo: 'Support Team'
+    };
+    
+    setSupportTickets([...supportTickets, newTicketObj]);
+    setShowTicketModal(false);
+    setNewTicket({
+      subject: '',
+      user: '',
+      email: '',
+      category: 'Technical',
+      priority: 'medium',
+      status: 'open',
+      description: ''
+    });
+  };
+
+  const handleEditTicket = () => {
+    if (!selectedTicket) return;
+    
+    const updatedTickets = supportTickets.map(ticket => 
+      ticket.id === selectedTicket.id ? { ...selectedTicket, lastUpdate: new Date().toISOString().split('T')[0] } : ticket
+    );
+    
+    setSupportTickets(updatedTickets);
+    setShowTicketModal(false);
+    setSelectedTicket(null);
+  };
+
+  const handleDeleteCourse = (id: number) => {
+    if (confirm('Are you sure you want to delete this course?')) {
+      setCourses(courses.filter(course => course.id !== id));
+    }
+  };
+
+  const handleUpdateTicket = () => {
+    if (!selectedTicket) return;
+    
+    const updatedTickets = supportTickets.map(ticket => 
+      ticket.id === selectedTicket.id ? { ...selectedTicket, lastUpdate: new Date().toISOString().split('T')[0] } : ticket
+    );
+    
+    setSupportTickets(updatedTickets);
+    setShowTicketModal(false);
+    setSelectedTicket(null);
+  };
+
+  const handleDeleteTicket = (id: number) => {
+    if (confirm('Are you sure you want to delete this ticket?')) {
+      setSupportTickets(supportTickets.filter(ticket => ticket.id !== id));
+    }
+  };
+
+  const handleSaveSettings = () => {
+    // In a real app, you would save these settings to a backend
+    alert('Settings saved successfully!');
+    setShowSettingsModal(false);
+  };
+
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesRole = filterRole === 'all' || user.role === filterRole;
+    const matchesStatus = filterStatus === 'all' || user.status === filterStatus;
+    
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+
+ const openUserModal = (user: any = null) => {
+    if (user) {
+      setSelectedUser(user);
+      setEditMode(true);
+    } else {
+      setSelectedUser(null);
+      setEditMode(false);
+    }
+    setShowUserModal(true);
+  };
+
+  const openCourseModal = (course: any = null) => {
+    if (course) {
+      setSelectedCourse(course);
+      setEditCourseMode(true); 
+    } else {
+      setSelectedCourse(null);
+      setEditCourseMode(false); 
+    }
+    setShowCourseModal(true);
+  };
+
+  const openTicketModal = (ticket: any = null) => {
+    if (ticket) {
+      setSelectedTicket(ticket);
+      setEditTicketMode(true);
+    } else {
+      setSelectedTicket(null);
+      setEditTicketMode(false);
+    }
+    setShowTicketModal(true);
   };
 
   return (
@@ -421,14 +661,14 @@ export default function AdminDashboard() {
               <h3 className="text-lg font-bold text-gray-900 mb-4">Quick Actions</h3>
               <div className="space-y-2">
                 <button
-                  onClick={() => setShowUserModal(true)}
+                  onClick={() => openUserModal()}
                   className="w-full flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   <UserPlus className="mr-3 h-4 w-4" />
                   Add New User
                 </button>
                 <button
-                  onClick={() => setShowCourseModal(true)}
+                  onClick={() => openCourseModal()}
                   className="w-full flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   <BookPlus className="mr-3 h-4 w-4" />
@@ -448,7 +688,7 @@ export default function AdminDashboard() {
             {activeTab === 'overview' && (
               <div className="space-y-6">
                 {/* System Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {[
                     { label: 'Total Users', value: systemStats.totalUsers.toLocaleString(), icon: Users, color: 'text-blue-600' },
                     { label: 'Total Courses', value: systemStats.totalCourses.toLocaleString(), icon: BookOpen, color: 'text-green-600' },
@@ -563,7 +803,7 @@ export default function AdminDashboard() {
                 <div className="flex justify-between items-center">
                   <h2 className="text-2xl font-bold text-gray-900">User Management</h2>
                   <button
-                    onClick={() => setShowUserModal(true)}
+                    onClick={() => openUserModal()}
                     className="bg-primary text-white px-4 py-2 rounded-md font-medium hover:bg-primary/90"
                   >
                     <UserPlus className="inline-block mr-2 h-4 w-4" />
@@ -624,7 +864,7 @@ export default function AdminDashboard() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {users.map((user) => (
+                        {filteredUsers.map((user) => (
                           <tr key={user.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
@@ -654,10 +894,16 @@ export default function AdminDashboard() {
                               {user.lastActivity}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <button className="text-primary hover:text-primary/90 mr-3">
+                              <button 
+                                onClick={() => openUserModal(user)}
+                                className="text-primary hover:text-primary/90 mr-3"
+                              >
                                 <Edit className="h-4 w-4" />
                               </button>
-                              <button className="text-red-600 hover:text-red-900">
+                              <button 
+                                onClick={() => handleDeleteUser(user.id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
                                 <Trash className="h-4 w-4" />
                               </button>
                             </td>
@@ -672,17 +918,20 @@ export default function AdminDashboard() {
 
             {/* Course Management Tab */}
             {activeTab === 'courses' && (
-              <div className="space-y-6">
+              <div className="space-y-6 max-w-4xl">
                 <div className="flex justify-between items-center">
                   <h2 className="text-2xl font-bold text-gray-900">Course Management</h2>
-                  <button className="bg-primary text-white px-4 py-2 rounded-md font-medium hover:bg-primary/90">
+                  <button 
+                    onClick={() => openCourseModal()}
+                    className="bg-primary text-white px-4 py-2 rounded-md font-medium hover:bg-primary/90"
+                  >
                     <BookPlus className="inline-block mr-2 h-4 w-4" />
                     Create Course
                   </button>
                 </div>
 
                 {/* Course Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {[
                     { label: 'Total Courses', value: courses.length, icon: BookOpen, color: 'text-blue-600' },
                     { label: 'Active Courses', value: courses.filter(c => c.status === 'active').length, icon: CheckCircle, color: 'text-green-600' },
@@ -714,19 +963,25 @@ export default function AdminDashboard() {
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Students</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {courses.map((course) => (
                           <tr key={course.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4">
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">{course.title}</div>
-                                <div className="text-sm text-gray-500">{course.category} • {course.level}</div>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="h-10 w-10 rounded bg-gray-200 flex items-center justify-center">
+                                  <BookOpen className="h-5 w-5 text-gray-500" />
+                                </div>
+                                <div className="ml-4">
+                                  <div className="text-sm font-medium text-gray-900">{course.title}</div>
+                                  <div className="text-sm text-gray-500">{course.category}</div>
+                                </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {course.instructor}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -734,20 +989,32 @@ export default function AdminDashboard() {
                                 {course.status}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {course.studentsEnrolled}
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {course.studentsEnrolled.toLocaleString()}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {formatCurrency(course.revenue)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              <div className="flex items-center">
+                                <Star className="h-4 w-4 text-yellow-400 fill-current" />
+                                <span className="ml-1">{course.averageRating}</span>
+                              </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                               <button className="text-primary hover:text-primary/90 mr-3">
                                 <Eye className="h-4 w-4" />
                               </button>
-                              <button className="text-primary hover:text-primary/90 mr-3">
+                              <button 
+                                onClick={() => openCourseModal(course)}
+                                className="text-primary hover:text-primary/90 mr-3"
+                              >
                                 <Edit className="h-4 w-4" />
                               </button>
-                              <button className="text-red-600 hover:text-red-900">
+                              <button 
+                                onClick={() => handleDeleteCourse(course.id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
                                 <Trash className="h-4 w-4" />
                               </button>
                             </td>
@@ -760,126 +1027,166 @@ export default function AdminDashboard() {
               </div>
             )}
 
+            {/* Analytics & Reports Tab */}
+            {activeTab === 'analytics' && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-gray-900">Analytics & Reports</h2>
+                
+                {/* Analytics Overview */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">User Growth</h3>
+                    <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
+                      <BarChart className="h-16 w-16 text-gray-300" />
+                      <p className="text-gray-500 ml-2">User Growth Chart</p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Course Popularity</h3>
+                    <div className="h-64 flex items-center justify-center bg-gray-50 rounded-lg">
+                      <PieChart className="h-16 w-16 text-gray-300" />
+                      <p className="text-gray-500 ml-2">Course Popularity Chart</p>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Engagement Metrics</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm text-gray-600">Completion Rate</span>
+                          <span className="text-sm font-medium">78%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-green-600 h-2 rounded-full" style={{ width: '78%' }}></div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm text-gray-600">Average Time Spent</span>
+                          <span className="text-sm font-medium">45 min/day</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-blue-600 h-2 rounded-full" style={{ width: '75%' }}></div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm text-gray-600">Returning Users</span>
+                          <span className="text-sm font-medium">62%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-purple-600 h-2 rounded-full" style={{ width: '62%' }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Geographic Distribution */}
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">User Geographic Distribution</h3>
+                  <div className="h-96 flex items-center justify-center bg-gray-50 rounded-lg">
+                    <MapPin className="h-16 w-16 text-gray-300" />
+                    <p className="text-gray-500 ml-2">World Map Visualization</p>
+                  </div>
+                </div>
+
+                {/* Export Options */}
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Export Reports</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md hover:bg-gray-50">
+                      <Download className="h-5 w-5 mr-2 text-gray-600" />
+                      <span>User Report</span>
+                    </button>
+                    <button className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md hover:bg-gray-50">
+                      <Download className="h-5 w-5 mr-2 text-gray-600" />
+                      <span>Course Report</span>
+                    </button>
+                    <button className="flex items-center justify-center px-4 py-3 border border-gray-300 rounded-md hover:bg-gray-50">
+                      <Download className="h-5 w-5 mr-2 text-gray-600" />
+                      <span>Financial Report</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Financial Overview Tab */}
             {activeTab === 'finance' && (
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-gray-900">Financial Overview</h2>
                 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <div className="bg-white rounded-xl shadow-sm p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-lg bg-green-100 text-green-600">
-                        <DollarSign className="h-6 w-6" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                        <p className="text-2xl font-bold text-gray-900">{formatCurrency(systemStats.totalRevenue)}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow-sm p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-lg bg-blue-100 text-blue-600">
-                        <TrendingUp className="h-6 w-6" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Monthly Growth</p>
-                        <p className="text-2xl font-bold text-gray-900">+{systemStats.userGrowthRate}%</p>
+                {/* Financial Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {[
+                    { label: 'Total Revenue', value: formatCurrency(systemStats.totalRevenue), icon: DollarSign, color: 'text-green-600' },
+                    { label: 'Monthly Revenue', value: formatCurrency(systemStats.monthlyRevenue), icon: TrendingUp, color: 'text-blue-600' },
+                    { label: 'Avg. Transaction', value: formatCurrency(systemStats.totalRevenue / 1250), icon: CreditCard, color: 'text-purple-600' },
+                    { label: 'Refund Rate', value: '2.4%', icon: XCircle, color: 'text-red-600' },
+                  ].map((metric, index) => (
+                    <div key={index} className="bg-white rounded-xl shadow-sm p-6">
+                      <div className="flex items-center">
+                        <div className={`p-3 rounded-lg bg-gray-100 ${metric.color}`}>
+                          <metric.icon className="h-6 w-6" />
+                        </div>
+                        <div className="ml-4">
+                          <p className="text-sm font-medium text-gray-600">{metric.label}</p>
+                          <p className="text-2xl font-bold text-gray-900">{metric.value}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow-sm p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-lg bg-purple-100 text-purple-600">
-                        <Users className="h-6 w-6" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Active Students</p>
-                        <p className="text-2xl font-bold text-gray-900">{systemStats.totalStudents.toLocaleString()}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow-sm p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-lg bg-yellow-100 text-yellow-600">
-                        <Award className="h-6 w-6" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Avg. Rating</p>
-                        <p className="text-2xl font-bold text-gray-900">{systemStats.averageRating}/5.0</p>
-                      </div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
-                {/* Revenue Analytics */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="bg-white rounded-xl shadow-sm p-6">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">Monthly Revenue Trend</h3>
-                    <div className="space-y-3">
-                      {financialAnalytics.monthlyRevenue.map((month, index) => (
-                        <div key={index} className="flex items-center">
-                          <span className="text-sm text-gray-600 w-16">{month.month}</span>
-                          <div className="flex-1 mx-3 bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-primary h-2 rounded-full"
-                              style={{ width: `${(month.revenue / 50000) * 100}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-sm font-medium w-20 text-right">{formatCurrency(month.revenue)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow-sm p-6">
-                    <h3 className="text-lg font-bold text-gray-900 mb-4">Revenue by Category</h3>
-                    <div className="space-y-3">
-                      {financialAnalytics.revenueByCategory.map((category, index) => (
-                        <div key={index}>
-                          <div className="flex justify-between text-sm mb-1">
-                            <span className="text-gray-600">{category.category}</span>
-                            <span className="font-medium">{category.percentage}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-primary h-2 rounded-full"
-                              style={{ width: `${category.percentage}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Top Instructors */}
+                {/* Revenue Chart */}
                 <div className="bg-white rounded-xl shadow-sm p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">Top Performing Instructors</h3>
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full">
-                      <thead>
-                        <tr className="border-b">
-                          <th className="text-left py-2 text-sm font-medium text-gray-600">Instructor</th>
-                          <th className="text-left py-2 text-sm font-medium text-gray-600">Revenue</th>
-                          <th className="text-left py-2 text-sm font-medium text-gray-600">Courses</th>
-                          <th className="text-left py-2 text-sm font-medium text-gray-600">Students</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {financialAnalytics.topInstructors.map((instructor, index) => (
-                          <tr key={index} className="border-b">
-                            <td className="py-3 text-sm text-gray-900">{instructor.name}</td>
-                            <td className="py-3 text-sm text-gray-900">{formatCurrency(instructor.revenue)}</td>
-                            <td className="py-3 text-sm text-gray-900">{instructor.courses}</td>
-                            <td className="py-3 text-sm text-gray-900">{instructor.students.toLocaleString()}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Revenue Trends</h3>
+                  <div className="h-80 flex items-center justify-center bg-gray-50 rounded-lg">
+                    <LineChart className="h-16 w-16 text-gray-300" />
+                    <p className="text-gray-500 ml-2">Revenue Chart Visualization</p>
+                  </div>
+                </div>
+
+                {/* Revenue by Category */}
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Revenue by Category</h3>
+                  <div className="space-y-4">
+                    {financialAnalytics.revenueByCategory.map((item, index) => (
+                      <div key={index}>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm text-gray-600">{item.category}</span>
+                          <span className="text-sm font-medium">{formatCurrency(item.revenue)} ({item.percentage}%)</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="h-2 rounded-full bg-primary" 
+                            style={{ width: `${item.percentage}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Top Instructors by Revenue */}
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Top Instructors by Revenue</h3>
+                  <div className="space-y-4">
+                    {financialAnalytics.topInstructors.map((instructor, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">{instructor.name}</p>
+                          <p className="text-sm text-gray-600">{instructor.courses} courses • {instructor.students} students</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-gray-900">{formatCurrency(instructor.revenue)}</p>
+                          <p className="text-sm text-green-600">Top performer</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -887,57 +1194,35 @@ export default function AdminDashboard() {
 
             {/* Support Tickets Tab */}
             {activeTab === 'support' && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-gray-900">Support Tickets</h2>
-                
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <div className="bg-white rounded-xl shadow-sm p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-lg bg-red-100 text-red-600">
-                        <AlertTriangle className="h-6 w-6" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Open Tickets</p>
-                        <p className="text-2xl font-bold text-gray-900">{systemStats.supportTickets - systemStats.resolvedTickets}</p>
-                      </div>
-                    </div>
-                  </div>
+              <div className="space-y-6 max-w-4xl">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold text-gray-900">Support Tickets</h2>
+                  <button className="bg-primary text-white px-4 py-2 rounded-md font-medium hover:bg-primary/90">
+                    <Plus className="inline-block mr-2 h-4 w-4" />
+                    New Ticket
+                  </button>
+                </div>
 
-                  <div className="bg-white rounded-xl shadow-sm p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-lg bg-yellow-100 text-yellow-600">
-                        <Clock className="h-6 w-6" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">In Progress</p>
-                        <p className="text-2xl font-bold text-gray-900">{systemStats.pendingTickets}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow-sm p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-lg bg-green-100 text-green-600">
-                        <CheckCircle className="h-6 w-6" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Resolved</p>
-                        <p className="text-2xl font-bold text-gray-900">{systemStats.resolvedTickets}</p>
+                {/* Ticket Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {[
+                    { label: 'Total Tickets', value: supportTickets.length, icon: AlertTriangle, color: 'text-gray-600' },
+                    { label: 'Open Tickets', value: supportTickets.filter(t => t.status === 'open').length, icon: AlertTriangle, color: 'text-red-600' },
+                    { label: 'In Progress', value: supportTickets.filter(t => t.status === 'in_progress').length, icon: Clock, color: 'text-yellow-600' },
+                    { label: 'Resolved', value: supportTickets.filter(t => t.status === 'resolved').length, icon: CheckCircle, color: 'text-green-600' },
+                  ].map((metric, index) => (
+                    <div key={index} className="bg-white rounded-xl shadow-sm p-6">
+                      <div className="flex items-center">
+                        <div className={`p-3 rounded-lg bg-gray-100 ${metric.color}`}>
+                          <metric.icon className="h-6 w-6" />
+                        </div>
+                        <div className="ml-4">
+                          <p className="text-sm font-medium text-gray-600">{metric.label}</p>
+                          <p className="text-2xl font-bold text-gray-900">{metric.value}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow-sm p-6">
-                    <div className="flex items-center">
-                      <div className="p-3 rounded-lg bg-blue-100 text-blue-600">
-                        <BarChart3 className="h-6 w-6" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">Total Tickets</p>
-                        <p className="text-2xl font-bold text-gray-900">{systemStats.supportTickets}</p>
-                      </div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
 
                 {/* Tickets Table */}
@@ -946,11 +1231,12 @@ export default function AdminDashboard() {
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
@@ -958,13 +1244,12 @@ export default function AdminDashboard() {
                         {supportTickets.map((ticket) => (
                           <tr key={ticket.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div>
-                                <div className="text-sm font-medium text-gray-900">{ticket.user}</div>
-                                <div className="text-sm text-gray-500">{ticket.email}</div>
-                              </div>
+                              <div className="text-sm font-medium text-gray-900">{ticket.subject}</div>
+                              <div className="text-sm text-gray-500">#{ticket.id}</div>
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-900">
-                              {ticket.subject}
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">{ticket.user}</div>
+                              <div className="text-sm text-gray-500">{ticket.email}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(ticket.priority)}`}>
@@ -977,15 +1262,250 @@ export default function AdminDashboard() {
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {ticket.assignedTo}
+                              {ticket.category}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {formatDate(ticket.createdDate)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                              <button className="text-primary hover:text-primary/90">
-                                <Eye className="h-4 w-4" />
+                              <button 
+                                onClick={() => openTicketModal(ticket)}
+                                className="text-primary hover:text-primary/90 mr-3"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteTicket(ticket.id)}
+                                className="text-red-600 hover:text-red-900"
+                              >
+                                <Trash className="h-4 w-4" />
                               </button>
                             </td>
                           </tr>
                         ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Platform Settings Tab */}
+            {activeTab === 'settings' && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-2xl font-bold text-gray-900">Platform Settings</h2>
+                  <button 
+                    onClick={() => setShowSettingsModal(true)}
+                    className="bg-primary text-white px-4 py-2 rounded-md font-medium hover:bg-primary/90"
+                  >
+                    <Settings className="inline-block mr-2 h-4 w-4" />
+                    Edit Settings
+                  </button>
+                </div>
+
+                {/* Settings Overview */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">General Settings</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Site Name</span>
+                        <span className="font-medium">{platformSettings.general.siteName}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Support Email</span>
+                        <span className="font-medium">{platformSettings.general.supportEmail}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Timezone</span>
+                        <span className="font-medium">{platformSettings.general.timezone}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Language</span>
+                        <span className="font-medium">{platformSettings.general.language}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Payment Settings</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Currency</span>
+                        <span className="font-medium">{platformSettings.payment.currency}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Commission Rate</span>
+                        <span className="font-medium">{platformSettings.payment.commissionRate}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Minimum Payout</span>
+                        <span className="font-medium">{formatCurrency(platformSettings.payment.minimumPayout)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Payout Schedule</span>
+                        <span className="font-medium capitalize">{platformSettings.payment.payoutSchedule}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Enabled Features</h3>
+                    <div className="space-y-3">
+                      {Object.entries(platformSettings.features).map(([key, value]) => (
+                        <div key={key} className="flex justify-between">
+                          <span className="text-gray-600">
+                            {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                          </span>
+                          <span className={`font-medium ${value ? 'text-green-600' : 'text-gray-600'}`}>
+                            {value ? 'Enabled' : 'Disabled'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Email Settings</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">SMTP Host</span>
+                        <span className="font-medium">{platformSettings.email.smtpHost}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">SMTP Port</span>
+                        <span className="font-medium">{platformSettings.email.smtpPort}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">From Email</span>
+                        <span className="font-medium">{platformSettings.email.fromEmail}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">From Name</span>
+                        <span className="font-medium">{platformSettings.email.fromName}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Security Tab */}
+            {activeTab === 'security' && (
+              <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-gray-900">Security Dashboard</h2>
+                
+                {/* Security Overview */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Security Status</h3>
+                    <div className="flex items-center mb-4">
+                      <Shield className="h-8 w-8 text-green-600 mr-3" />
+                      <div>
+                        <p className="font-medium text-gray-900">All systems operational</p>
+                        <p className="text-sm text-gray-600">Last security scan: Today, 10:30 AM</p>
+                      </div>
+                    </div>
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <p className="text-sm text-green-800">No security issues detected. All systems are up to date.</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Login Activity</h3>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <UserCheck className="h-5 w-5 text-green-600 mr-2" />
+                          <span className="text-sm text-gray-600">Successful logins (24h)</span>
+                        </div>
+                        <span className="font-medium">1,245</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <UserX className="h-5 w-5 text-red-600 mr-2" />
+                          <span className="text-sm text-gray-600">Failed attempts (24h)</span>
+                        </div>
+                        <span className="font-medium">23</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <AlertTriangle className="h-5 w-5 text-yellow-600 mr-2" />
+                          <span className="text-sm text-gray-600">Suspicious activities</span>
+                        </div>
+                        <span className="font-medium">2</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white rounded-xl shadow-sm p-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-4">Security Actions</h3>
+                    <div className="space-y-3">
+                      <button className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        <Shield className="h-4 w-4 mr-2" />
+                        Run Security Scan
+                      </button>
+                      <button className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        <Download className="h-4 w-4 mr-2" />
+                        Export Security Logs
+                      </button>
+                      <button className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        <Settings className="h-4 w-4 mr-2" />
+                        Security Settings
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recent Security Events */}
+                <div className="bg-white rounded-xl shadow-sm p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">Recent Security Events</h3>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP Address</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        <tr>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Failed login attempt</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">admin@example.com</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">192.168.1.15</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Today, 09:23 AM</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                              Warning
+                            </span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Password changed</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">user@example.com</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">10.0.0.45</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Today, 08:15 AM</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                              Normal
+                            </span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Multiple failed attempts</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">unknown</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">203.0.113.25</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Yesterday, 11:45 PM</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                              Blocked
+                            </span>
+                          </td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>
@@ -998,91 +1518,501 @@ export default function AdminDashboard() {
 
       {/* User Modal */}
       {showUserModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Add New User</h3>
-            <form className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                {editMode ? 'Edit User' : 'Add New User'}
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    value={editMode ? selectedUser?.name : newUser.name}
+                    onChange={(e) => editMode 
+                      ? setSelectedUser({...selectedUser, name: e.target.value})
+                      : setNewUser({...newUser, name: e.target.value})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    value={editMode ? selectedUser?.email : newUser.email}
+                    onChange={(e) => editMode 
+                      ? setSelectedUser({...selectedUser, email: e.target.value})
+                      : setNewUser({...newUser, email: e.target.value})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                  <select
+                    value={editMode ? selectedUser?.role : newUser.role}
+                    onChange={(e) => editMode 
+                      ? setSelectedUser({...selectedUser, role: e.target.value})
+                      : setNewUser({...newUser, role: e.target.value})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="student">Student</option>
+                    <option value="instructor">Instructor</option>
+                    <option value="parent">Parent</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    value={editMode ? selectedUser?.status : newUser.status}
+                    onChange={(e) => editMode 
+                      ? setSelectedUser({...selectedUser, status: e.target.value})
+                      : setNewUser({...newUser, status: e.target.value})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="suspended">Suspended</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input type="email" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
-                  <option value="student">Student</option>
-                  <option value="instructor">Instructor</option>
-                  <option value="parent">Parent</option>
-                </select>
-              </div>
-              <div className="flex space-x-3 pt-4">
+              <div className="mt-6 flex justify-end space-x-3">
                 <button
-                  type="button"
                   onClick={() => setShowUserModal(false)}
-                  className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-md font-medium hover:bg-gray-50"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit"
-                  className="flex-1 bg-primary text-white px-4 py-2 rounded-md font-medium hover:bg-primary/90"
+                  onClick={editMode ? handleEditUser : handleAddUser}
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary/90"
                 >
-                  Create User
+                  {editMode ? 'Update User' : 'Add User'}
                 </button>
               </div>
-            </form>
+            </div>
+          </div>
+        </div>
+      )}
+       {/* Course Modal */}
+      {showCourseModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                {editCourseMode ? 'Edit Course' : 'Create New Course'}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Course Title</label>
+                  <input
+                    type="text"
+                    value={editCourseMode ? selectedCourse?.title : newCourse.title}
+                    onChange={(e) => editCourseMode 
+                      ? setSelectedCourse({...selectedCourse, title: e.target.value})
+                      : setNewCourse({...newCourse, title: e.target.value})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Instructor</label>
+                  <input
+                    type="text"
+                    value={editCourseMode ? selectedCourse?.instructor : newCourse.instructor}
+                    onChange={(e) => editCourseMode 
+                      ? setSelectedCourse({...selectedCourse, instructor: e.target.value})
+                      : setNewCourse({...newCourse, instructor: e.target.value})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <select
+                    value={editCourseMode ? selectedCourse?.category : newCourse.category}
+                    onChange={(e) => editCourseMode 
+                      ? setSelectedCourse({...selectedCourse, category: e.target.value})
+                      : setNewCourse({...newCourse, category: e.target.value})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="Programming">Programming</option>
+                    <option value="Design">Design</option>
+                    <option value="Business">Business</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Lifestyle">Lifestyle</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Price ($)</label>
+                  <input
+                    type="number"
+                    value={editCourseMode ? selectedCourse?.price : newCourse.price}
+                    onChange={(e) => editCourseMode 
+                      ? setSelectedCourse({...selectedCourse, price: parseFloat(e.target.value)})
+                      : setNewCourse({...newCourse, price: parseFloat(e.target.value)})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    value={editCourseMode ? selectedCourse?.status : newCourse.status}
+                    onChange={(e) => editCourseMode 
+                      ? setSelectedCourse({...selectedCourse, status: e.target.value})
+                      : setNewCourse({...newCourse, status: e.target.value})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="active">Active</option>
+                    <option value="draft">Draft</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Students Enrolled</label>
+                  <input
+                    type="number"
+                    value={editCourseMode ? selectedCourse?.studentsEnrolled : newCourse.studentsEnrolled}
+                    onChange={(e) => editCourseMode 
+                      ? setSelectedCourse({...selectedCourse, studentsEnrolled: parseInt(e.target.value)})
+                      : setNewCourse({...newCourse, studentsEnrolled: parseInt(e.target.value)})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    rows={3}
+                    value={editCourseMode ? selectedCourse?.description : newCourse.description}
+                    onChange={(e) => editCourseMode 
+                      ? setSelectedCourse({...selectedCourse, description: e.target.value})
+                      : setNewCourse({...newCourse, description: e.target.value})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowCourseModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={editCourseMode ? handleEditCourse : handleAddCourse}
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary/90"
+                >
+                  {editCourseMode ? 'Update Course' : 'Create Course'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Course Modal */}
-      {showCourseModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Create New Course</h3>
-            <form className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Course Title</label>
-                <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary" />
+      {/* Ticket Modal */}
+      {showTicketModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                {editTicketMode ? 'Edit Support Ticket' : 'Create New Ticket'}
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                  <input
+                    type="text"
+                    value={editTicketMode ? selectedTicket?.subject : newTicket.subject}
+                    onChange={(e) => editTicketMode 
+                      ? setSelectedTicket({...selectedTicket, subject: e.target.value})
+                      : setNewTicket({...newTicket, subject: e.target.value})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">User</label>
+                  <input
+                    type="text"
+                    value={editTicketMode ? selectedTicket?.user : newTicket.user}
+                    onChange={(e) => editTicketMode 
+                      ? setSelectedTicket({...selectedTicket, user: e.target.value})
+                      : setNewTicket({...newTicket, user: e.target.value})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={editTicketMode ? selectedTicket?.email : newTicket.email}
+                    onChange={(e) => editTicketMode 
+                      ? setSelectedTicket({...selectedTicket, email: e.target.value})
+                      : setNewTicket({...newTicket, email: e.target.value})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <select
+                    value={editTicketMode ? selectedTicket?.category : newTicket.category}
+                    onChange={(e) => editTicketMode 
+                      ? setSelectedTicket({...selectedTicket, category: e.target.value})
+                      : setNewTicket({...newTicket, category: e.target.value})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="Technical">Technical</option>
+                    <option value="Billing">Billing</option>
+                    <option value="Content">Content</option>
+                    <option value="Account">Account</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                  <select
+                    value={editTicketMode ? selectedTicket?.priority : newTicket.priority}
+                    onChange={(e) => editTicketMode 
+                      ? setSelectedTicket({...selectedTicket, priority: e.target.value})
+                      : setNewTicket({...newTicket, priority: e.target.value})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    value={editTicketMode ? selectedTicket?.status : newTicket.status}
+                    onChange={(e) => editTicketMode 
+                      ? setSelectedTicket({...selectedTicket, status: e.target.value})
+                      : setNewTicket({...newTicket, status: e.target.value})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="open">Open</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    rows={4}
+                    value={editTicketMode ? selectedTicket?.description : newTicket.description}
+                    onChange={(e) => editTicketMode 
+                      ? setSelectedTicket({...selectedTicket, description: e.target.value})
+                      : setNewTicket({...newTicket, description: e.target.value})
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Instructor</label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
-                  <option>Select Instructor</option>
-                  <option>Sarah Johnson</option>
-                  <option>Dr. Michael Chen</option>
-                  <option>Emma Wilson</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary">
-                  <option>Select Category</option>
-                  <option>Web Development</option>
-                  <option>Data Science</option>
-                  <option>Marketing</option>
-                  <option>Design</option>
-                </select>
-              </div>
-              <div className="flex space-x-3 pt-4">
+              <div className="mt-6 flex justify-end space-x-3">
                 <button
-                  type="button"
-                  onClick={() => setShowCourseModal(false)}
-                  className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-md font-medium hover:bg-gray-50"
+                  onClick={() => setShowTicketModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
                 >
                   Cancel
                 </button>
                 <button
-                  type="submit"
-                  className="flex-1 bg-primary text-white px-4 py-2 rounded-md font-medium hover:bg-primary/90"
+                  onClick={editTicketMode ? handleEditTicket : handleAddTicket}
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary/90"
                 >
-                  Create Course
+                  {editTicketMode ? 'Update Ticket' : 'Create Ticket'}
                 </button>
               </div>
-            </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Platform Settings</h3>
+              <div className="space-y-6">
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-3">General Settings</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Site Name</label>
+                      <input
+                        type="text"
+                        value={platformSettings.general.siteName}
+                        onChange={(e) => setPlatformSettings({
+                          ...platformSettings,
+                          general: {...platformSettings.general, siteName: e.target.value}
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Support Email</label>
+                      <input
+                        type="email"
+                        value={platformSettings.general.supportEmail}
+                        onChange={(e) => setPlatformSettings({
+                          ...platformSettings,
+                          general: {...platformSettings.general, supportEmail: e.target.value}
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Timezone</label>
+                      <select
+                        value={platformSettings.general.timezone}
+                        onChange={(e) => setPlatformSettings({
+                          ...platformSettings,
+                          general: {...platformSettings.general, timezone: e.target.value}
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        <option value="UTC">UTC</option>
+                        <option value="EST">Eastern Time (EST)</option>
+                        <option value="PST">Pacific Time (PST)</option>
+                        <option value="GMT">Greenwich Mean Time (GMT)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
+                      <select
+                        value={platformSettings.general.language}
+                        onChange={(e) => setPlatformSettings({
+                          ...platformSettings,
+                          general: {...platformSettings.general, language: e.target.value}
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        <option value="en">English</option>
+                        <option value="es">Spanish</option>
+                        <option value="fr">French</option>
+                        <option value="de">German</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-3">Payment Settings</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+                      <select
+                        value={platformSettings.payment.currency}
+                        onChange={(e) => setPlatformSettings({
+                          ...platformSettings,
+                          payment: {...platformSettings.payment, currency: e.target.value}
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="GBP">GBP (£)</option>
+                        <option value="CAD">CAD (C$)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Commission Rate (%)</label>
+                      <input
+                        type="number"
+                        value={platformSettings.payment.commissionRate}
+                        onChange={(e) => setPlatformSettings({
+                          ...platformSettings,
+                          payment: {...platformSettings.payment, commissionRate: parseInt(e.target.value)}
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Payout ($)</label>
+                      <input
+                        type="number"
+                        value={platformSettings.payment.minimumPayout}
+                        onChange={(e) => setPlatformSettings({
+                          ...platformSettings,
+                          payment: {...platformSettings.payment, minimumPayout: parseInt(e.target.value)}
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Payout Schedule</label>
+                      <select
+                        value={platformSettings.payment.payoutSchedule}
+                        onChange={(e) => setPlatformSettings({
+                          ...platformSettings,
+                          payment: {...platformSettings.payment, payoutSchedule: e.target.value}
+                        })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        <option value="weekly">Weekly</option>
+                        <option value="bi-weekly">Bi-Weekly</option>
+                        <option value="monthly">Monthly</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-3">Feature Toggles</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries(platformSettings.features).map(([key, value]) => (
+                      <div key={key} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id={key}
+                          checked={value}
+                          onChange={(e) => setPlatformSettings({
+                            ...platformSettings,
+                            features: {...platformSettings.features, [key]: e.target.checked}
+                          })}
+                          className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                        />
+                        <label htmlFor={key} className="ml-2 block text-sm text-gray-900">
+                          {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-6 flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowSettingsModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => setShowSettingsModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary/90"
+                >
+                  Save Settings
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
