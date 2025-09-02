@@ -918,7 +918,7 @@ export default function AdminDashboard() {
 
             {/* Course Management Tab */}
             {activeTab === 'courses' && (
-              <div className="space-y-6 max-w-4xl">
+              <div className="space-y-6">
                 <div className="flex justify-between items-center">
                   <h2 className="text-2xl font-bold text-gray-900">Course Management</h2>
                   <button 
@@ -1194,7 +1194,7 @@ export default function AdminDashboard() {
 
             {/* Support Tickets Tab */}
             {activeTab === 'support' && (
-              <div className="space-y-6 max-w-4xl">
+              <div className="space-y-6">
                 <div className="flex justify-between items-center">
                   <h2 className="text-2xl font-bold text-gray-900">Support Tickets</h2>
                   <button className="bg-primary text-white px-4 py-2 rounded-md font-medium hover:bg-primary/90">
