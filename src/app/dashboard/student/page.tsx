@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { BookOpen, Clock, Award, Calendar, BarChart2, CheckCircle, FileText, Settings, User, LogOut, Search, Filter, Star, Users, Clock3, BookOpenCheck, Video, Bell, ExternalLink, MessageSquare, CheckSquare, FileCheck, FileQuestion, ThumbsUp, Loader, PenTool, Upload, Download, X, Plus, ChevronDown, ChevronRight, Edit, Trash, AlertCircle, Target, TrendingUp, FilePlus, Info, Paperclip } from 'lucide-react';
+import { BookOpen, Clock, Award, Calendar, BarChart2, CheckCircle, FileText, Settings, User, LogOut, Search, Filter, Star, Users, Clock3, BookOpenCheck, Video, Bell, ExternalLink, MessageSquare, CheckSquare, FileCheck, FileQuestion, ThumbsUp, Loader, PenTool, Upload, Download, X, Plus, ChevronDown, Edit, Trash, AlertCircle, Target, TrendingUp, FilePlus, Info, Paperclip } from 'lucide-react';
 
 // Mock data for all available courses
 const availableCourses = [
@@ -1572,7 +1572,7 @@ export default function StudentDashboard() {
                         <div>
                           <h3 className="text-md font-bold text-gray-900 mb-2">Submission Type</h3>
                           <p className="text-sm text-gray-700 capitalize">
-                            {upcomingDeadlines.find(d => d.id === showAssignmentDetails)?.submissionType.replace('_', ' ')}
+                              {upcomingDeadlines.find(d => d.id === showAssignmentDetails)?.submissionType?.replace('_', ' ') || 'file upload'}
                           </p>
                         </div>
                       )}

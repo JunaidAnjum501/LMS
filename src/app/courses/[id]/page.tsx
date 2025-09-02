@@ -5,8 +5,36 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Star, Clock, CheckCircle, ArrowLeft, ArrowRight, Share2, BookOpen, Award, Users } from 'lucide-react';
 
+// Define types for our data structures
+interface Course {
+  id: number;
+  title: string;
+  instructor: string;
+  category: string;
+  level: string;
+  rating: number;
+  students: number;
+  duration: string;
+  price: number;
+  image: string;
+  tags: string[];
+}
+
+interface Lesson {
+  id: number;
+  title: string;
+  duration: string;
+  isPreview: boolean;
+}
+
+interface CurriculumSection {
+  id: number;
+  title: string;
+  lessons: Lesson[];
+}
+
 // Import the mock data from the courses page
-const coursesData = [
+const coursesData: Course[] = [
   {
     id: 1,
     title: 'Introduction to Web Development',
@@ -114,7 +142,7 @@ const coursesData = [
 ];
 
 // Course curriculum mock data
-const curriculumData = [
+const curriculumData: CurriculumSection[] = [
   {
     id: 1,
     title: 'Getting Started',
@@ -145,34 +173,40 @@ const curriculumData = [
 ];
 
 // Related courses mock data (simplified version of coursesData)
-const getRelatedCourses = (currentCourseId, category) => {
+const getRelatedCourses = (currentCourseId: number, category: string): Course[] => {
   return coursesData
     .filter(course => course.id !== currentCourseId && course.category === category)
     .slice(0, 3);
 };
 
-export default function CourseDetailPage({ params }) {
-  // Unwrap params with React.use() before accessing properties
-  const unwrappedParams = React.use(params);
-  const courseId = parseInt(unwrappedParams.id);
-  
-  const [course, setCourse] = useState(null);
+export default function CourseDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const [unwrappedParams, setUnwrappedParams] = useState<{ id: string } | null>(null);
+  const [course, setCourse] = useState<Course | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
-  const [expandedSections, setExpandedSections] = useState([1]); // First section expanded by default
-  const [relatedCourses, setRelatedCourses] = useState([]);
+  const [expandedSections, setExpandedSections] = useState<number[]>([1]); // First section expanded by default
+  const [relatedCourses, setRelatedCourses] = useState<Course[]>([]);
   
   useEffect(() => {
-    // Find the course by ID from the URL params
-    const foundCourse = coursesData.find(c => c.id === courseId);
+    // Unwrap the params promise
+    const unwrapParams = async () => {
+      const resolvedParams = await params;
+      setUnwrappedParams(resolvedParams);
+      
+      // Find the course by ID from the URL params
+      const courseId = parseInt(resolvedParams.id);
+      const foundCourse = coursesData.find(c => c.id === courseId);
+      
+      if (foundCourse) {
+        setCourse(foundCourse);
+        setRelatedCourses(getRelatedCourses(courseId, foundCourse.category));
+      }
+    };
     
-    if (foundCourse) {
-      setCourse(foundCourse);
-      setRelatedCourses(getRelatedCourses(courseId, foundCourse.category));
-    }
-  }, [courseId]);
+    unwrapParams();
+  }, [params]);
   
   // Toggle curriculum section expansion
-  const toggleSection = (sectionId) => {
+  const toggleSection = (sectionId: number) => {
     if (expandedSections.includes(sectionId)) {
       setExpandedSections(expandedSections.filter(id => id !== sectionId));
     } else {
@@ -180,16 +214,12 @@ export default function CourseDetailPage({ params }) {
     }
   };
   
-  if (!course) {
+  if (!unwrappedParams || !course) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex justify-center items-center min-h-[60vh]">
         <div className="text-center">
           <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-primary mb-2">Course not found</h2>
-          <p className="text-gray-700 mb-6">The course you're looking for doesn't exist or has been removed.</p>
-          <Link href="/courses" className="btn btn-primary">
-            Browse All Courses
-          </Link>
+          <h2 className="text-2xl font-bold text-primary mb-2">Loading course...</h2>
         </div>
       </div>
     );
@@ -611,7 +641,7 @@ export default function CourseDetailPage({ params }) {
                       {/* Rating Bars */}
                       {[5, 4, 3, 2, 1].map(rating => {
                         // Mock percentages
-                        const percentages = {
+                        const percentages: Record<number, number> = {
                           5: 75,
                           4: 18,
                           3: 5,

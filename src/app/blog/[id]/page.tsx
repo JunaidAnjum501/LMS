@@ -6,8 +6,25 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Calendar, User, Clock, Tag, ArrowLeft, Share2, Bookmark, ThumbsUp } from 'lucide-react';
 
+// Define types for our blog post
+interface BlogPost {
+  id: number;
+  title: string;
+  excerpt: string;
+  content: string;
+  author: string;
+  authorBio: string;
+  authorImage: string;
+  date: string;
+  readTime: string;
+  category: string;
+  tags: string[];
+  image: string;
+  featured: boolean;
+}
+
 // Sample blog posts data (same as in blog/page.tsx)
-const blogPosts = [
+const blogPosts: BlogPost[] = [
   {
     id: 1,
     title: 'The Future of Online Learning: Trends to Watch in 2023',
@@ -263,7 +280,7 @@ const blogPosts = [
 ];
 
 // Related posts function
-const getRelatedPosts = (currentPostId, currentTags, currentCategory) => {
+const getRelatedPosts = (currentPostId: number, currentTags: string[], currentCategory: string): BlogPost[] => {
   return blogPosts
     .filter(post => {
       // Exclude current post
@@ -281,12 +298,12 @@ const getRelatedPosts = (currentPostId, currentTags, currentCategory) => {
 export default function BlogPostPage() {
   const params = useParams();
   const router = useRouter();
-  const [post, setPost] = useState(null);
-  const [relatedPosts, setRelatedPosts] = useState([]);
+  const [post, setPost] = useState<BlogPost | null>(null);
+  const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
   
   useEffect(() => {
     // Find the post with the matching ID
-    const postId = parseInt(params.id);
+    const postId = parseInt(params.id as string);
     const foundPost = blogPosts.find(p => p.id === postId);
     
     if (foundPost) {

@@ -8,11 +8,11 @@ export default function AboutPage() {
   const [expandedTestimonial, setExpandedTestimonial] = useState(null);
   const [activeAccordion, setActiveAccordion] = useState(null);
 
-  const toggleTestimonial = (index) => {
+  const toggleTestimonial = (index:any) => {
     setExpandedTestimonial(expandedTestimonial === index ? null : index);
   };
 
-  const toggleAccordion = (index) => {
+  const toggleAccordion = (index:any) => {
     setActiveAccordion(activeAccordion === index ? null : index);
   };
 

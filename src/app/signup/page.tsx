@@ -86,7 +86,7 @@ export default function SignupPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          role: formData.role === 'admin' ? 'student' : formData.role
+          role: formData.role
         })
       });
 
